@@ -134,12 +134,17 @@ function place(){
 }
 
 function drop(){
-  // 2個セット両方が1マス下に行けるかチェック
-  const nextCells = getCells().map(([x,y,color])=>[x,y+1,color]);
+  // ピース全体を1マス下げた状態で衝突チェック
+  const test={...current,y:current.y+1};
 
-  if(!collideCells(nextCells)){
+  if(!collideCells(getCells(test))){
     current.y++;
   }else{
+    place();
+  }
+
+  draw();
+}else{
     place();
   }
   draw();
