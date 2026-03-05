@@ -2,184 +2,142 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Puyo風ゲーム</title>
+<title>ぷよぷよ風ゲーム</title>
 <style>
 body{
-  background:#1a1a2e;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-  margin:0;
-  font-family:sans-serif;
+  background:#222;
   color:white;
+  text-align:center;
+  font-family:sans-serif;
 }
-#game{
-  display:grid;
-  grid-template-columns:repeat(6,40px);
-  grid-template-rows:repeat(12,40px);
-  gap:2px;
-  background:#0f3460;
-  padding:5px;
-  border-radius:10px;
+
+canvas{
+  background:#111;
+  margin-top:20px;
+  border:3px solid white;
 }
-.cell{
-  width:40px;
-  height:40px;
-  background:#16213e;
-  border-radius:6px;
-}
-.puyo{border-radius:50%;}
-.red{background:#ff4b5c;}
-.green{background:#4cd964;}
-.blue{background:#4da6ff;}
-.yellow{background:#ffd93d;}
 </style>
 </head>
 <body>
-<div>
-<h2>Puyo風ミニゲーム</h2>
-<div id="game"></div>
-<p>← → 移動 / ↓ 早く落ちる / Space 回転</p>
-</div>
+
+<h1>ぷよぷよ風ゲーム</h1>
+<p>← → 移動 / ↓ 早く落とす / スペース 回転</p>
+
+<canvas id="game" width="240" height="480"></canvas>
 
 <script>
-const WIDTH=6;
-const HEIGHT=12;
-const colors=["red","green","blue","yellow"];
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-const board=[];
-const game=document.getElementById("game");
+const COLS = 6;
+const ROWS = 12;
+const SIZE = 40;
 
-for(let y=0;y<HEIGHT;y++){
-  board[y]=[];
-  for(let x=0;x<WIDTH;x++){
-    const cell=document.createElement("div");
-    cell.className="cell";
-    game.appendChild(cell);
-    board[y][x]=null;
-  }
-}
+let board = Array.from({length:ROWS},()=>Array(COLS).fill(0));
 
-function randomColor(){
-  return colors[Math.floor(Math.random()*colors.length)];
-}
+const colors = ["","red","blue","green","yellow","purple"];
 
-let current=null;
-
-function spawn(){
-  current={
+function newPair(){
+  return {
     x:2,
     y:0,
     rot:0,
-    colors:[randomColor(),randomColor()]
+    colors:[
+      Math.floor(Math.random()*5)+1,
+      Math.floor(Math.random()*5)+1
+    ]
   };
-
-  if(collideCells(getCells())){
-    alert("ゲームオーバー");
-    location.reload();
-  }
 }
 
-function getCells(piece=current){
-  const {x,y,rot,colors}=piece;
-  const cells=[[x,y,colors[0]]];
-
-  if(rot===0)cells.push([x,y-1,colors[1]]);
-  if(rot===1)cells.push([x+1,y,colors[1]]);
-  if(rot===2)cells.push([x,y+1,colors[1]]);
-  if(rot===3)cells.push([x-1,y,colors[1]]);
-
-  return cells;
-}
-
-function collideCells(cells){
-  for(const [x,y] of cells){
-    if(x<0||x>=WIDTH||y>=HEIGHT)return true;
-    if(y>=0 && board[y][x])return true;
-  }
-  return false;
-}
+let pair = newPair();
 
 function draw(){
-  const cells=game.children;
-  let i=0;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  for(let y=0;y<HEIGHT;y++){
-    for(let x=0;x<WIDTH;x++){
-      const cell=cells[i++];
-      cell.className="cell";
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
       if(board[y][x]){
-        cell.classList.add("puyo",board[y][x]);
+        ctx.fillStyle=colors[board[y][x]];
+        ctx.beginPath();
+        ctx.arc(x*SIZE+SIZE/2,y*SIZE+SIZE/2,16,0,Math.PI*2);
+        ctx.fill();
       }
     }
   }
 
-  if(current){
-    for(const [x,y,color] of getCells()){
-      if(y<0)continue;
-      const index=y*WIDTH+x;
-      const cell=cells[index];
-      if(cell)cell.classList.add("puyo",color);
-    }
+  drawPair();
+}
+
+function drawPair(){
+  const p = pair;
+
+  const pos = [
+    [p.x,p.y],
+    getSecondPos()
+  ];
+
+  for(let i=0;i<2;i++){
+    ctx.fillStyle=colors[p.colors[i]];
+    ctx.beginPath();
+    ctx.arc(pos[i][0]*SIZE+SIZE/2,pos[i][1]*SIZE+SIZE/2,16,0,Math.PI*2);
+    ctx.fill();
   }
 }
 
-function place(){
-  for(const [x,y,color] of getCells()){
-    if(y>=0)board[y][x]=color;
-  }
-  clearMatches();
-  spawn();
+function getSecondPos(){
+  const p = pair;
+
+  if(p.rot===0) return [p.x,p.y-1];
+  if(p.rot===1) return [p.x+1,p.y];
+  if(p.rot===2) return [p.x,p.y+1];
+  if(p.rot===3) return [p.x-1,p.y];
 }
 
-function drop(){
-  // ピース全体を1マス下げた状態で衝突チェック
-  const test={...current,y:current.y+1};
-
-  if(!collideCells(getCells(test))){
-    current.y++;
-  }else{
-    place();
-  }
-
-  draw();
-}else{
-    place();
-  }
-  draw();
-};
-  if(!collideCells(getCells(test))){
-    current.y++;
-  }else{
-    place();
-  }
-  draw();
+function collide(x,y){
+  if(x<0||x>=COLS||y>=ROWS) return true;
+  if(y>=0 && board[y][x]) return true;
+  return false;
 }
 
-function move(dir){
-  const test={...current,x:current.x+dir};
-  if(!collideCells(getCells(test))){
-    current.x+=dir;
-    draw();
+function move(dx){
+  if(!collide(pair.x+dx,pair.y)){
+    pair.x+=dx;
   }
 }
 
 function rotate(){
-  const test={...current,rot:(current.rot+1)%4};
-  if(!collideCells(getCells(test))){
-    current.rot=test.rot;
-    draw();
+  pair.rot=(pair.rot+1)%4;
+}
+
+function drop(){
+  pair.y++;
+
+  const s = getSecondPos();
+
+  if(collide(pair.x,pair.y) || collide(s[0],s[1])){
+    pair.y--;
+
+    place();
+    clearGroups();
+    pair=newPair();
   }
 }
 
-function clearMatches(){
-  const visited=Array.from({length:HEIGHT},()=>Array(WIDTH).fill(false));
+function place(){
+  const s=getSecondPos();
+
+  if(pair.y>=0) board[pair.y][pair.x]=pair.colors[0];
+  if(s[1]>=0) board[s[1]][s[0]]=pair.colors[1];
+}
+
+function clearGroups(){
+
+  const visited = Array.from({length:ROWS},()=>Array(COLS).fill(false));
 
   function dfs(x,y,color,list){
-    if(x<0||x>=WIDTH||y<0||y>=HEIGHT)return;
-    if(visited[y][x])return;
-    if(board[y][x]!==color)return;
+    if(x<0||x>=COLS||y<0||y>=ROWS) return;
+    if(visited[y][x]) return;
+    if(board[y][x]!==color) return;
 
     visited[y][x]=true;
     list.push([x,y]);
@@ -190,35 +148,35 @@ function clearMatches(){
     dfs(x,y-1,color,list);
   }
 
-  let removed=false;
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
 
-  for(let y=0;y<HEIGHT;y++){
-    for(let x=0;x<WIDTH;x++){
       if(board[y][x] && !visited[y][x]){
-        const list=[];
-        dfs(x,y,board[y][x],list);
 
-        if(list.length>=4){
-          removed=true;
-          for(const [lx,ly] of list){
-            board[ly][lx]=null;
-          }
+        let group=[];
+        dfs(x,y,board[y][x],group);
+
+        if(group.length>=4){
+          group.forEach(p=>{
+            board[p[1]][p[0]]=0;
+          });
         }
+
       }
     }
   }
 
-  if(removed)applyGravity();
+  gravity();
 }
 
-function applyGravity(){
-  for(let x=0;x<WIDTH;x++){
-    for(let y=HEIGHT-1;y>=0;y--){
-      if(board[y][x]==null){
-        for(let yy=y-1;yy>=0;yy--){
-          if(board[yy][x]){
-            board[y][x]=board[yy][x];
-            board[yy][x]=null;
+function gravity(){
+  for(let x=0;x<COLS;x++){
+    for(let y=ROWS-1;y>=0;y--){
+      if(board[y][x]==0){
+        for(let k=y-1;k>=0;k--){
+          if(board[k][x]){
+            board[y][x]=board[k][x];
+            board[k][x]=0;
             break;
           }
         }
@@ -227,18 +185,20 @@ function applyGravity(){
   }
 }
 
-window.addEventListener("keydown",e=>{
-  if(!current)return;
-
-  if(e.key==="ArrowLeft")move(-1);
-  if(e.key==="ArrowRight")move(1);
-  if(e.key==="ArrowDown")drop();
-  if(e.code==="Space")rotate();
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft") move(-1);
+  if(e.key==="ArrowRight") move(1);
+  if(e.key==="ArrowDown") drop();
+  if(e.key===" ") rotate();
 });
 
-spawn();
+setInterval(()=>{
+  drop();
+  draw();
+},500);
+
 draw();
-setInterval(drop,700);
 </script>
+
 </body>
 </html>
