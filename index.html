@@ -29,9 +29,7 @@ body{
   background:#16213e;
   border-radius:6px;
 }
-.puyo{
-  border-radius:50%;
-}
+.puyo{border-radius:50%;}
 .red{background:#ff4b5c;}
 .green{background:#4cd964;}
 .blue{background:#4da6ff;}
@@ -42,7 +40,7 @@ body{
 <div>
 <h2>Puyo風ミニゲーム</h2>
 <div id="game"></div>
-<p>← → で移動 / ↓ で早く落ちる</p>
+<p>← → 移動 / ↓ 早く落ちる / Space 回転</p>
 </div>
 
 <script>
@@ -63,9 +61,50 @@ for(let y=0;y<HEIGHT;y++){
   }
 }
 
+function randomColor(){
+  return colors[Math.floor(Math.random()*colors.length)];
+}
+
+let current=null;
+
+function spawn(){
+  current={
+    x:2,
+    y:0,
+    rot:0,
+    colors:[randomColor(),randomColor()]
+  };
+
+  if(collideCells(getCells())){
+    alert("ゲームオーバー");
+    location.reload();
+  }
+}
+
+function getCells(piece=current){
+  const {x,y,rot,colors}=piece;
+  const cells=[[x,y,colors[0]]];
+
+  if(rot===0)cells.push([x,y-1,colors[1]]);
+  if(rot===1)cells.push([x+1,y,colors[1]]);
+  if(rot===2)cells.push([x,y+1,colors[1]]);
+  if(rot===3)cells.push([x-1,y,colors[1]]);
+
+  return cells;
+}
+
+function collideCells(cells){
+  for(const [x,y] of cells){
+    if(x<0||x>=WIDTH||y>=HEIGHT)return true;
+    if(y>=0 && board[y][x])return true;
+  }
+  return false;
+}
+
 function draw(){
   const cells=game.children;
   let i=0;
+
   for(let y=0;y<HEIGHT;y++){
     for(let x=0;x<WIDTH;x++){
       const cell=cells[i++];
@@ -75,39 +114,37 @@ function draw(){
       }
     }
   }
-  
+
   if(current){
-    const index=current.y*WIDTH+current.x;
-    const cell=cells[index];
-    cell.classList.add("puyo",current.color);
+    for(const [x,y,color] of getCells()){
+      if(y<0)continue;
+      const index=y*WIDTH+x;
+      const cell=cells[index];
+      if(cell)cell.classList.add("puyo",color);
+    }
   }
 }
 
-function randomColor(){
-  return colors[Math.floor(Math.random()*colors.length)];
-}
-
-let current=null;
-
-function spawn(){
-  current={x:2,y:0,color:randomColor()};
-}
-
-function collide(x,y){
-  if(x<0||x>=WIDTH||y>=HEIGHT)return true;
-  if(y>=0 && board[y][x])return true;
-  return false;
-}
-
 function place(){
-  board[current.y][current.x]=current.color;
+  for(const [x,y,color] of getCells()){
+    if(y>=0)board[y][x]=color;
+  }
   clearMatches();
   spawn();
 }
 
 function drop(){
-  if(!current)spawn();
-  if(!collide(current.x,current.y+1)){
+  // 2個セット両方が1マス下に行けるかチェック
+  const nextCells = getCells().map(([x,y,color])=>[x,y+1,color]);
+
+  if(!collideCells(nextCells)){
+    current.y++;
+  }else{
+    place();
+  }
+  draw();
+};
+  if(!collideCells(getCells(test))){
     current.y++;
   }else{
     place();
@@ -116,8 +153,17 @@ function drop(){
 }
 
 function move(dir){
-  if(!collide(current.x+dir,current.y)){
+  const test={...current,x:current.x+dir};
+  if(!collideCells(getCells(test))){
     current.x+=dir;
+    draw();
+  }
+}
+
+function rotate(){
+  const test={...current,rot:(current.rot+1)%4};
+  if(!collideCells(getCells(test))){
+    current.rot=test.rot;
     draw();
   }
 }
@@ -139,6 +185,8 @@ function clearMatches(){
     dfs(x,y-1,color,list);
   }
 
+  let removed=false;
+
   for(let y=0;y<HEIGHT;y++){
     for(let x=0;x<WIDTH;x++){
       if(board[y][x] && !visited[y][x]){
@@ -146,6 +194,7 @@ function clearMatches(){
         dfs(x,y,board[y][x],list);
 
         if(list.length>=4){
+          removed=true;
           for(const [lx,ly] of list){
             board[ly][lx]=null;
           }
@@ -154,7 +203,7 @@ function clearMatches(){
     }
   }
 
-  applyGravity();
+  if(removed)applyGravity();
 }
 
 function applyGravity(){
@@ -179,6 +228,7 @@ window.addEventListener("keydown",e=>{
   if(e.key==="ArrowLeft")move(-1);
   if(e.key==="ArrowRight")move(1);
   if(e.key==="ArrowDown")drop();
+  if(e.code==="Space")rotate();
 });
 
 spawn();
@@ -187,4 +237,3 @@ setInterval(drop,700);
 </script>
 </body>
 </html>
-
